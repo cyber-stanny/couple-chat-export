@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-微信单聊记录提取 + AI 预处理脚本
-基于 chatlog 提取夫妻/情侣私聊数据，用于 AI 情感分析
+💑 微信单聊记录提取 + AI 预处理脚本
+基于 chatlog_alpha (https://github.com/teest114514/chatlog_alpha)
+用于提取夫妻/情侣私聊数据，进行 AI 情感分析
+
+更新记录：
+- 2026-02-22: 适配 chatlog_alpha，原 chatlog (sjzar) 已停止维护
 """
 
 import json
@@ -22,7 +26,7 @@ class CoupleChatExporter:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         
-        # 消息类型映射
+        # 消息类型映射 (chatlog_alpha 兼容)
         self.msg_types = {
             1: "text",      # 文字
             3: "image",     # 图片
@@ -36,17 +40,22 @@ class CoupleChatExporter:
     
     def extract_from_chatlog(self):
         """
-        从 chatlog HTTP API 提取数据
+        从 chatlog_alpha HTTP API 提取数据
+        API 地址: http://127.0.0.1:5030
         """
         print("=" * 60)
         print("💑 情侣聊天记录提取工具")
+        print("   基于 chatlog_alpha (https://github.com/teest114514/chatlog_alpha)")
         print("=" * 60)
         
-        print("\n【步骤1】启动 chatlog 服务")
+        print("\n【步骤1】启动 chatlog_alpha 服务")
         print("请先在终端执行以下命令：")
-        print("  1. chatlog key          # 获取数据密钥")
-        print("  2. chatlog decrypt      # 解密数据库")
-        print("  3. chatlog server       # 启动 HTTP 服务")
+        print("  1. chatlog key          # 获取数据密钥（需重启微信）")
+        print("  2. chatlog server       # 启动 HTTP 服务")
+        print("\n⚠️  重要提示：")
+        print("  - DLL 文件必须放在 lib/windows_x64/ 目录下")
+        print("  - 使用'重启获取密钥'方式，不是直接解密")
+        print("  - 如果 wx_key1.dll 不行，尝试 wx_key2.dll")
         print("\n确认服务已启动后，按 Enter 继续...")
         input()
         
@@ -61,6 +70,9 @@ class CoupleChatExporter:
         except Exception as e:
             print(f"❌ 连接失败: {e}")
             print("请确认 chatlog server 已启动（端口 5030）")
+            print("常见问题：")
+            print("  1. DLL 文件是否放在正确位置？")
+            print("  2. 是否使用了重启获取密钥？")
             return None
         
         print(f"  找到 {len(contacts)} 个联系人")
@@ -213,7 +225,7 @@ class CoupleChatExporter:
                 writer.writerow([
                     time_str,
                     dt.strftime("%Y-%m-%d") if dt else "",
-                    dt.strftime("H:%M:%S") if dt else "",
+                    dt.strftime("%H:%M:%S") if dt else "",
                     dt.year if dt else "",
                     dt.strftime("%Y-%m") if dt else "",
                     sender,
@@ -413,7 +425,7 @@ def print_usage_examples(output_dir: Path, partner: str):
 3. 谁主动发起对话更多
 4. 最暖心的3个瞬间
 5. 如果有矛盾，简要说明
-  """)
+    """)
     
     print("\n【年度趋势分析 Prompt】")
     print(f"  上传文件: ai_analysis/yearly_2023_summary.txt")
@@ -423,7 +435,7 @@ def print_usage_examples(output_dir: Path, partner: str):
 2. 聊天频率变化及可能原因
 3. 共同关注的话题演变
 4. 给我们的年度关键词
-  """)
+    """)
     
     print("\n【数据可视化建议】")
     print("  用 chat_timeline.csv 在 Excel/Numbers 中制作：")
@@ -431,20 +443,24 @@ def print_usage_examples(output_dir: Path, partner: str):
     print("  - 柱状图: 每天24小时聊天分布")
     print("  - 词云: 高频关键词")
     
-    print("\n⚠️ 安全提醒:")
+    print("\n⚠️  安全提醒:")
     print("  1. 分析完成后删除 ~/.chatlog/ 下的解密文件")
     print("  2. 导出的文本文件请妥善保管")
     print("  3. 上传到 AI 时注意隐私，建议用本地模型")
+    print("  4. 考虑将真实姓名替换为'我'/'TA'等代称")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="情侣/夫妻微信单聊记录提取工具",
+        description="情侣/夫妻微信单聊记录提取工具 - 基于 chatlog_alpha",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
   python couple_chat_export.py --partner "老婆" --output ./my_love
   python couple_chat_export.py --partner "宝贝" --output ./7years_chat
+
+更多帮助:
+  https://github.com/teest114514/chatlog_alpha
         """
     )
     parser.add_argument(
@@ -477,6 +493,11 @@ def main():
     
     if not chat_data:
         print("\n❌ 提取失败，请检查错误信息后重试")
+        print("\n常见问题排查：")
+        print("  1. DLL 文件是否放在 lib/windows_x64/ 目录？")
+        print("  2. 是否使用了'重启获取密钥'方式？")
+        print("  3. 微信版本是否在支持范围内（4.1.5.30）？")
+        print("  4. chatlog server 是否正常运行（端口 5030）？")
         return
     
     # 转换保存
@@ -486,7 +507,7 @@ def main():
     print_usage_examples(Path(args.output), args.partner)
     
     print("\n" + "=" * 60)
-    print("✅ 全部完成！明天早上可以开始 AI 分析了 🌅")
+    print("✅ 全部完成！可以开始 AI 分析了 🌅")
     print("=" * 60)
 
 
